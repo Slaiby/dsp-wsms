@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 from sklearn.impute import SimpleImputer
@@ -5,7 +6,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 st.set_page_config(page_title='House Prices Prediction', page_icon='🏠', layout='wide', initial_sidebar_state='auto')
-
 
 header = st.container()
 dataset = st.container()
@@ -45,7 +45,7 @@ with dataset:
     st.header('House Prices Dataset')
     st.text('I found this dataset on Kaggle and it contains information about the House prices.')
 
-    house_data = get_data('/Users/slaiby/Desktop/EPITA/dsp/dsp-wsms/data/test.csv')
+    house_data = get_data(os.getcwd()+ '/logic_layer/data/test.csv')
     st.write(house_data.head())
 
     st.subheader('LotArea distribution')
