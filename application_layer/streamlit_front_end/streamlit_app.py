@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-import requests  # Import requests
+import requests
 
 data = pd.read_csv(os.getcwd() + '/logic_layer/data/loan_data.csv')
 
