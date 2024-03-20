@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from typing import List
+import json
 
 from api_layer.fast_api.service_slices import fetch_past_predictions
 from logic_layer.models import Prediction
@@ -13,9 +14,10 @@ async def predict():
 @app.get("/get-past-predictions", response_model=List[Prediction])
 async def get_past_predictions():
     predictions = await fetch_past_predictions()
-    return [Prediction(
+    prediction_list = [Prediction(
         id=row['id'],
         inference_id=row['inference_id'],
-        result=row['result'],
+        result=json.loads(row['result']) if isinstance(row['result'], str) else row['result'],
         timestamp=row['timestamp'].isoformat()
     ) for row in predictions]
+    return prediction_list
