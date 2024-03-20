@@ -3,13 +3,21 @@ from typing import List
 import json
 
 from api_layer.fast_api.service_slices import fetch_past_predictions
-from logic_layer.models import Prediction
+from logic_layer.models import Prediction, PredictionRequest
 
 app = FastAPI()
 
 @app.post("/predict")
-async def predict():
-    return {"message": "Hello, FastAPI!"}
+async def predict(request_data: PredictionRequest):
+    return {
+        "message": "Received data!",
+        "credit_history": request_data.credit_history,
+        "dependents": request_data.dependents,
+        "education": request_data.education,
+        "married": request_data.married,
+        "property_area": request_data.property_area,
+        "coapplicant_income": request_data.coapplicant_income
+    }
 
 @app.get("/get-past-predictions", response_model=List[Prediction])
 async def get_past_predictions():
