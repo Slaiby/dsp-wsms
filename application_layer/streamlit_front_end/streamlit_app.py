@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import requests
 
+BASE_URL = os.getenv('BASE_URL')
 data = pd.read_csv(os.getcwd() + '/logic_layer/data/loan_data.csv')
 
 st.set_page_config(page_title='Loan Eligibility Prediction', page_icon='🏠', layout='wide', initial_sidebar_state='auto')
@@ -12,7 +13,7 @@ st.title('Loan Eligibility Prediction 🏠')
 with st.form(key='loan_form'):
     st.header('Please enter your details:')
     
-    credit_history = st.number_input('Credit History', min_value=0.0, format="%.1f")
+    credit_history = st.number_input('Credit History', min_value=0.0, step=1.0, format="%.1f")
     dependents = st.selectbox('Dependents', options=data['Dependents'].unique(), index=int(data['Dependents'].mode()[0]))
     education = st.radio('Education', options=data['Education'].unique(), index=int((data['Education'] == data['Education'].mode()[0]).argmax()))
     married = st.radio('Married', options=data['Married'].unique(), index=int((data['Married'] == data['Married'].mode()[0]).argmax()))
@@ -31,7 +32,7 @@ if get_prediction:
         'coapplicant_income': coapplicant_income
     }
     
-    response = requests.post('http://127.0.0.1:8000/predict', json=form_data)
+    response = requests.post(BASE_URL + '/predict', json=form_data)
     
     if response.status_code == 200:
         prediction = response.json()
@@ -40,7 +41,7 @@ if get_prediction:
         st.error('Failed to get prediction from the API.')
 
 if get_previous_predictions:
-    response = requests.get('http://127.0.0.1:8000/get-past-predictions')
+    response = requests.get(BASE_URL + '/get-past-predictions')
     
     if response.status_code == 200:
         predictions_data = pd.DataFrame(response.json())
