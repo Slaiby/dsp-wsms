@@ -1,9 +1,11 @@
 import json
 from logic_layer.postgres_database.database_utils import create_db_connection
 
-async def fetch_past_predictions():
+async def fetch_past_predictions(page=1, page_size=10):
+    offset = (page - 1) * page_size
     conn = await create_db_connection()
-    rows = await conn.fetch('SELECT * FROM api_inferences')
+    query = f'SELECT * FROM api_inferences ORDER BY timestamp DESC LIMIT {page_size} OFFSET {offset}'
+    rows = await conn.fetch(query)
     await conn.close()
     return rows
 
