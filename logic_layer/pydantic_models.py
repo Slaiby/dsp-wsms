@@ -2,8 +2,8 @@ from pydantic import BaseModel
 
 class Prediction(BaseModel):
     id: int
-    inference_id: str
-    result: dict 
+    result: dict
+    prediction: float
     timestamp: str
     
 class PredictionRequest(BaseModel):
