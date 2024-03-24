@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 import pandas as pd
 import os
@@ -49,6 +50,13 @@ with st.form(key='loan_form'):
         response = requests.get(BASE_URL + '/get-past-predictions')
         if response.status_code == 200:
             predictions_data = pd.DataFrame(response.json())
-            st.table(predictions_data)
+
+            summary_df = predictions_data[['id', 'prediction', 'timestamp']]
+            st.table(summary_df)
+
+            st.write("Detailed JSON Data:")
+            for index, row in predictions_data.iterrows():
+                with st.expander(f"Details for Prediction ID {row['id']}"):
+                    st.json(row['result'])
         else:
             st.error('Failed to retrieve past predictions.')
