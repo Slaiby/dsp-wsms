@@ -1,23 +1,19 @@
 from fastapi import FastAPI
 from typing import List
 import json
+import numpy as np
 
 from api_layer.fast_api.service_slices import fetch_past_predictions
-from logic_layer.models import Prediction, PredictionRequest
+from logic_layer.pydantic_models import Prediction, PredictionRequest
+from logic_layer.acceptance_prediction.inference import make_predictions
 
 app = FastAPI()
 
 @app.post("/predict")
 async def predict(request_data: PredictionRequest):
-    return {
-        "message": "Received data!",
-        "credit_history": request_data.credit_history,
-        "dependents": request_data.dependents,
-        "education": request_data.education,
-        "married": request_data.married,
-        "property_area": request_data.property_area,
-        "coapplicant_income": request_data.coapplicant_income
-    }
+    input_dict = request_data.model_dump()
+    prediction = make_predictions(input_dict)
+    return {"prediction": prediction.tolist()}
 
 @app.get("/get-past-predictions", response_model=List[Prediction])
 async def get_past_predictions():
