@@ -1,26 +1,25 @@
 import numpy as np
 from joblib import load
 import pandas as pd
-from acceptance_prediction.constants import (CONTINUOUS_FEATURES,
+import os
+from .constants import (CONTINUOUS_FEATURES,
                                     CATEGORICAL_FEATURES)
 
 
-def make_predictions(input_data: pd.DataFrame) -> np.ndarray:
-    scaler = load('../models/scaler.joblib')
-    encoder = load('../models/encoder.joblib')
-    model = load('../models/model.joblib')
+def make_predictions(input_dict: dict):
+    scaler = load(os.getcwd() + '/logic_layer/model/scaler.joblib')
+    encoder = load(os.getcwd() + '/logic_layer/model/encoder.joblib')
+    model = load(os.getcwd() + '/logic_layer/model/model.joblib')
 
-    continuous_data = scaler.transform(
-        input_data[CONTINUOUS_FEATURES].fillna(
-            input_data[CONTINUOUS_FEATURES].median())
-    )
-    categorical_data = encoder.transform(
-        input_data[CATEGORICAL_FEATURES].fillna(
-            input_data[CATEGORICAL_FEATURES].mode().iloc[0])
-    ).toarray()
+    continuous_features = np.array([[input_dict[feature] for feature in CONTINUOUS_FEATURES]])
 
-    input_data_preprocessed = np.hstack((continuous_data, categorical_data))
+    categorical_features = np.array([[input_dict[feature] for feature in CATEGORICAL_FEATURES]])
+    categorical_features_encoded = encoder.transform(categorical_features).toarray()
 
-    predictions = model.predict(input_data_preprocessed)
+    continuous_features_scaled = scaler.transform(continuous_features)
 
+    input_vector_processed = np.concatenate([continuous_features_scaled, categorical_features_encoded], axis=1)
+
+    predictions = model.predict(input_vector_processed)
+    
     return predictions
