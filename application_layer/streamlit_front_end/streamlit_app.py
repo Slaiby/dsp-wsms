@@ -66,15 +66,14 @@ def prediction_page():
                     st.success("File uploaded successfully.")
 
                     # Proceed with predictions using the uploaded file
-                    csv_data = pd.read_csv(temp_file.name)
+                    csv_data = pd.read_csv(temp_file.name, encoding='latin1')
                     st.write("Predictions for uploaded CSV file:")
                     st.write(csv_data)
                 else:
                     st.error("Failed to upload file. Please try again.")
             else:
                 st.error("Uploaded file is empty.")
-        else:
-            st.error("No file uploaded.")
+
 
     finally:
         # Cleaning up the temporary file
@@ -84,6 +83,7 @@ def prediction_page():
 
         elif predict_button:
             st.error("Please upload a CSV file before predicting.")
+
 
     # Make prediction for single entry if prediction form is submitted
     if get_prediction:
