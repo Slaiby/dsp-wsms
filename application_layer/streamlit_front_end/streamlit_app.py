@@ -31,23 +31,19 @@ def prediction_page():
 
         get_prediction = st.form_submit_button(label='Check Eligibility')
 
-    # Upload CSV file for multiple predictions
     uploaded_file = st.file_uploader("Upload CSV file for multiple predictions", type=['csv'])
 
-    # file size check
     if uploaded_file is not None and uploaded_file.size > 200 * 1024 * 1024:  # 200MB in bytes
         st.error("File size exceeds the maximum limit of 200MB. Please upload a smaller file.")
         return
 
-    # Predict button for CSV file
     if uploaded_file is not None:
         predict_button = st.button("Predict for CSV File")
     else:
         predict_button = st.button("Predict for CSV File", disabled=True)
         
-    if predict_button and uploaded_file is not None:
+    if uploaded_file is not None:
         try:
-            # Generate a temporary file name with a unique suffix
             temp_file_name = uploaded_file.name
             temp_file_suffix = 0
 
@@ -56,54 +52,24 @@ def prediction_page():
                 file_name, file_extension = os.path.splitext(uploaded_file.name)
                 temp_file_name = f"{file_name}({temp_file_suffix}){file_extension}"
 
-            # Saving the uploaded file temporarily with its modified name
             temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
             temp_file.write(uploaded_file.read())
-
-            # Sending the file to the upload endpoint
-            upload_response = requests.post(BASE_URL + '/file/upload', files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
-            if upload_response.status_code == 200:
-                # Display a toast notification for successful file upload
-                st.markdown(
-                    """
-                    <style>
-                    .toast-notification {
-                        position: fixed;
-                        top: 30px;
-                        right: 20px;
-                        background-color: var(--success-color);
-                        color: white;
-                        padding: 15px 30px;
-                        border-radius: 5px;
-                        animation: fadeInOut 10s forwards;
-                        z-index: 1000;
-                    }
-
-                    @keyframes fadeInOut {
-                        0%, 100% {
-                            opacity: 1;
-                        }
-                        50% {
-                            opacity: 0;
-                        }
-                    }
-                    </style>
-                    <div class="toast-notification" id="toast-notification">
-                        File uploaded successfully!
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                st.success("File uploaded successfully.")
-                # Proceed with predictions using the uploaded file
-                csv_data = pd.read_csv(temp_file.name, encoding='latin1')
-                st.write("Predictions for uploaded CSV file:")
-                st.write(csv_data)
-            else:
-                st.error("Failed to upload file. Please try again.")
+            csv_data = pd.read_csv(temp_file.name, encoding='latin1').head(25)
+            st.write(csv_data)
+            if predict_button:
+                upload_response = requests.post(BASE_URL + '/file/upload', 
+                                                files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
+                if upload_response is not None and upload_response.status_code == 200:
+                    upload_response_data = upload_response.json()
+                    if upload_response_data['is_valid']:
+                        st.success("File uploaded successfully. and is suitable for prediction.")
+                    else:
+                        st.error("File not suitable for predictions.")
+                        st.info(upload_response_data['message'])
+                else:
+                    st.error("Failed to upload file. Please try again.")
 
         finally:
-            # Cleaning up the temporary file
             if temp_file:
                 temp_file.close()
                 os.unlink(temp_file.name)
@@ -111,7 +77,6 @@ def prediction_page():
             elif predict_button:
                 st.error("Please upload a CSV file before predicting.")
 
-    # Make prediction for single entry if prediction form is submitted
     if get_prediction:
         form_data = {
             'ApplicantIncome': applicant_income,
@@ -133,26 +98,21 @@ def prediction_page():
             st.error('Failed to get prediction from the API.')
 
 def past_predictions_page():
-    # Date selection components
     start_date = st.date_input("Start Date", value=None)
     end_date = st.date_input("End Date", value=None)
 
-    # Prediction source drop list
     prediction_source = st.selectbox("Prediction Source", options=["webapp", "scheduled predictions", "all"])
 
-    # Get past predictions button
     with st.form(key='past_predictions_form'):
         get_previous_predictions = st.form_submit_button(label='Get Past Predictions')
 
         if get_previous_predictions:
-            # Prepare query parameters based on user input
             query_params = {
                 "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
                 "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
                 "prediction_source": prediction_source
             }
 
-            # API request to retrieve past predictions
             response = requests.get(BASE_URL + '/get-past-predictions', params=query_params)
             if response.status_code == 200:
                 predictions_data = pd.DataFrame(response.json())
@@ -172,12 +132,10 @@ def main():
 
     page = st.sidebar.selectbox("Select Page", ["Prediction", "Past Predictions"])
 
-    # Display selected page
     if page == "Prediction":
         prediction_page()
     elif page == "Past Predictions":
         past_predictions_page()
-
 
 if __name__ == "__main__":
     main()
