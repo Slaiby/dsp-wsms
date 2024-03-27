@@ -1,24 +1,50 @@
 import json
+from datetime import datetime
 from io import BytesIO
 from fastapi import HTTPException, UploadFile
 
 from logic_layer.acceptance_prediction.csv_service import validate_csv
 from logic_layer.postgres_database.database_utils import create_db_connection
+from logic_layer.pydantic_models import PredictionQueryParams
 
-async def fetch_past_predictions(page=1, page_size=10):
-    offset = (page - 1) * page_size
+async def fetch_past_predictions(params: PredictionQueryParams):
+    offset = (params.page - 1) * params.page_size
     conn = await create_db_connection()
-    query = f'SELECT * FROM api_inferences ORDER BY timestamp DESC LIMIT {page_size} OFFSET {offset}'
-    rows = await conn.fetch(query)
+
+    query = 'SELECT * FROM api_inferences'
+    conditions = []
+    query_params = []
+
+    if params.start_date:
+        start_date_obj = datetime.strptime(params.start_date, '%Y-%m-%d').date()
+        conditions.append(f"timestamp >= $1")
+        query_params.append(start_date_obj)
+    if params.end_date:
+        end_date_obj = datetime.strptime(params.end_date, '%Y-%m-%d').date()
+        conditions.append(f"timestamp <= ${len(query_params) + 1}")
+        query_params.append(end_date_obj)
+
+    if params.prediction_source and params.prediction_source.lower() != 'all':
+        conditions.append(f"source = ${len(query_params) + 1}")
+        query_params.append(params.prediction_source)
+
+    if conditions:
+        query += ' WHERE ' + ' AND '.join(conditions)
+
+    query += f' ORDER BY timestamp DESC LIMIT ${len(query_params) + 1} OFFSET ${len(query_params) + 2}'
+
+    query_params += [params.page_size, offset]
+
+    rows = await conn.fetch(query, *query_params)
     await conn.close()
     return rows
 
-async def insert_inference_data(data_input, prediction):
+async def insert_inference_data(data_input, prediction, prediction_source):
     conn = await create_db_connection()
     async with conn.transaction():
         await conn.execute('''
-            INSERT INTO api_inferences (request_data, prediction) VALUES ($1, $2)
-        ''', json.dumps(data_input), str(prediction))
+            INSERT INTO api_inferences (request_data, prediction, prediction_source) VALUES ($1, $2, $3)
+        ''', json.dumps(data_input), str(prediction), str(prediction_source))
     await conn.close()
 
 async def handle_csv_file(file: UploadFile):
