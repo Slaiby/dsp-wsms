@@ -11,7 +11,7 @@ from logic_layer.acceptance_prediction.inference import make_predictions
 
 app = FastAPI()
 
-UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logic_layer", "uploaded-files"))
+UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logic_layer", "uploaded_files"))
 
 # Maximum allowed file size (200MB)
 MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024
