@@ -28,7 +28,7 @@ async def get_past_predictions_endpoint(params: PredictionQueryParams = Depends(
     prediction_list = [
         Prediction(
             id=prediction['id'],
-            result=json.loads(prediction.get('result', '{}')),
+            result=json.loads(prediction.get('request_data', '{}')),
             prediction=str(prediction['prediction']),
             timestamp=str(prediction['timestamp'])
         ) for prediction in predictions
