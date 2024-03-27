@@ -86,23 +86,24 @@ def prediction_page():
 def past_predictions_page():
     start_date = st.date_input("Start Date", value=None)
     end_date = st.date_input("End Date", value=None)
+    prediction_source = st.selectbox("Prediction Source", options=["webapp", "csv-predictions", "scheduled predictions", "all"])
 
-    prediction_source = st.selectbox("Prediction Source", options=["webapp", "scheduled predictions", "all"])
+    query_params = {
+        "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
+        "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
+        "prediction_source": prediction_source
+    }
 
     with st.form(key='past_predictions_form'):
         get_previous_predictions = st.form_submit_button(label='Get Past Predictions')
 
-        if get_previous_predictions:
-            query_params = {
-                "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
-                "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
-                "prediction_source": prediction_source
-            }
-
+    if get_previous_predictions:
+        try:
             response = requests.get(BASE_URL + '/get-past-predictions', params=query_params)
-            if response.status_code == 200:
-                predictions_data = pd.DataFrame(response.json())
+            response.raise_for_status()
 
+            if response.json():
+                predictions_data = pd.DataFrame(response.json())
                 summary_df = predictions_data[['id', 'prediction', 'timestamp']]
                 st.table(summary_df)
 
@@ -111,7 +112,14 @@ def past_predictions_page():
                     with st.expander(f"Details for Prediction ID {row['id']}"):
                         st.json(row['result'])
             else:
-                st.error('Failed to retrieve past predictions.')
+                st.warning("No prediction data received from the API.")
+
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error retrieving past predictions: {e}")
+        except KeyError as e:
+            st.error(f"Error processing API response: {e}")
+        except Exception as e:
+            st.error(f"An unexpected error occurred: {e}")
 
 def main():
     st.title("Loan Eligibility Prediction 🏠")
