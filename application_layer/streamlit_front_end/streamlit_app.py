@@ -62,7 +62,7 @@ def prediction_page():
                 if upload_response is not None and upload_response.status_code == 200:
                     upload_response_data = upload_response.json()
                     if upload_response_data['is_valid']:
-                        st.success("File uploaded successfully. and is suitable for prediction.")
+                        st.success("File uploaded successfully and is suitable for predictions.")
                         predict_csv = requests.post(BASE_URL + '/predict_from_csv', 
                                                 files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
                         if predict_csv.status_code == 200:
