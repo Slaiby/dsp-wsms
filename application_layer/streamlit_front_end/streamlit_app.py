@@ -44,55 +44,17 @@ def prediction_page():
         predict_button = st.button("Predict for CSV File")
     else:
         predict_button = st.button("Predict for CSV File", disabled=True)
-
-    # Process the uploaded CSV file if it exists
-    # if predict_button and uploaded_file is not None:
-    #     temp_file = None
-
-    # try:
-    #     # Saving the uploaded file temporarily with its original name
-    #     temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
-
-    #     # Checking if uploaded_file has content before reading from it
-    #     if uploaded_file:
-    #         uploaded_file_content = uploaded_file.read()
-
-    #         if uploaded_file_content:
-    #             temp_file.write(uploaded_file_content)
-                
-    #             # Sending the file to the upload endpoint
-    #             upload_response = requests.post(BASE_URL + '/file/upload', files={'file': (uploaded_file.name, open(temp_file.name, 'rb'))})
-    #             if upload_response.status_code == 200:
-    #                 st.success("File uploaded successfully.")
-
-    #                 # Proceed with predictions using the uploaded file
-    #                 csv_data = pd.read_csv(temp_file.name, encoding='latin1')
-    #                 st.write("Predictions for uploaded CSV file:")
-    #                 st.write(csv_data)
-    #             else:
-    #                 st.error("Failed to upload file. Please try again.")
-    #         else:
-    #             st.error("Uploaded file is empty.")
-
-
-    # finally:
-    #     # Cleaning up the temporary file
-    #     if temp_file:
-    #         temp_file.close()
-    #         os.unlink(temp_file.name)
-
-    #     elif predict_button:
-    #         st.error("Please upload a CSV file before predicting.")
+        
     if predict_button and uploaded_file is not None:
         try:
-            # Generate a temporary file name with the original file name and a unique suffix
+            # Generate a temporary file name with a unique suffix
             temp_file_name = uploaded_file.name
             temp_file_suffix = 0
 
             while os.path.exists(temp_file_name):
                 temp_file_suffix += 1
-                temp_file_name, extension = os.path.splitext(uploaded_file.name)
-                temp_file_name = f"{temp_file_name}({temp_file_suffix}){extension}"
+                file_name, file_extension = os.path.splitext(uploaded_file.name)
+                temp_file_name = f"{file_name}({temp_file_suffix}){file_extension}"
 
             # Saving the uploaded file temporarily with its modified name
             temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
@@ -101,6 +63,7 @@ def prediction_page():
             # Sending the file to the upload endpoint
             upload_response = requests.post(BASE_URL + '/file/upload', files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
             if upload_response.status_code == 200:
+                # Display a toast notification for successful file upload
                 st.markdown(
                     """
                     <style>
@@ -108,25 +71,24 @@ def prediction_page():
                         position: fixed;
                         top: 30px;
                         right: 20px;
-                        background-color: var(--primary-color);
+                        background-color: var(--success-color);
                         color: white;
                         padding: 15px 30px;
                         border-radius: 5px;
-                        animation: fadeOut 12s forwards;
+                        animation: fadeInOut 10s forwards;
                         z-index: 1000;
                     }
 
-                    @keyframes fadeOut {
-                        0% {
+                    @keyframes fadeInOut {
+                        0%, 100% {
                             opacity: 1;
                         }
-                        100% {
+                        50% {
                             opacity: 0;
-                            display: none;
                         }
                     }
                     </style>
-                    <div class="toast-notification">
+                    <div class="toast-notification" id="toast-notification">
                         File uploaded successfully!
                     </div>
                     """,
