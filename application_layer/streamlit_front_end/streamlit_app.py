@@ -1,3 +1,4 @@
+from io import StringIO
 import json
 import streamlit as st
 import pandas as pd
@@ -28,58 +29,39 @@ def prediction_page():
         education = st.radio('Education', options=['Graduate', 'Not Graduate'])
         married = st.radio('Married', options=['Yes', 'No'])
         property_area = st.selectbox('Property Area', options=['Rural', 'Semiurban', 'Urban'])
-
+       
         get_prediction = st.form_submit_button(label='Check Eligibility')
 
     uploaded_file = st.file_uploader("Upload CSV file for multiple predictions", type=['csv'])
 
-    if uploaded_file is not None and uploaded_file.size > 200 * 1024 * 1024:  # 200MB in bytes
+    if uploaded_file is not None and uploaded_file.size > 200 * 1024 * 1024:
         st.error("File size exceeds the maximum limit of 200MB. Please upload a smaller file.")
         return
 
     if uploaded_file is not None:
-        predict_button = st.button("Predict for CSV File")
-    else:
-        predict_button = st.button("Predict for CSV File", disabled=True)
-        
-    if uploaded_file is not None:
-        try:
-            temp_file_name = uploaded_file.name
-            temp_file_suffix = 0
+        df = pd.read_csv(uploaded_file)
+        st.write(df.head(25))
+        csv_buffer = StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_buffer.seek(0)  
+        files = {'file': ('dataframe.csv', csv_buffer.getvalue(), 'text/csv')}
 
-            while os.path.exists(temp_file_name):
-                temp_file_suffix += 1
-                file_name, file_extension = os.path.splitext(uploaded_file.name)
-                temp_file_name = f"{file_name}({temp_file_suffix}){file_extension}"
+        response = requests.post(BASE_URL + '/file/upload', files=files)
 
-            temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
-            temp_file.write(uploaded_file.read())
-            csv_data = pd.read_csv(temp_file.name, encoding='latin1').head(25)
-            st.write(csv_data)
-            if predict_button:
-                upload_response = requests.post(BASE_URL + '/file/upload', 
-                                                files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
-                if upload_response is not None and upload_response.status_code == 200:
-                    upload_response_data = upload_response.json()
-                    if upload_response_data['is_valid']:
-                        st.success("File uploaded successfully and is suitable for predictions.")
-                        predict_csv = requests.post(BASE_URL + '/predict_from_csv', 
-                                                files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
-                        if predict_csv.status_code == 200:
-                            st.table(pd.DataFrame(predict_csv.json()))
-                    else:
-                        st.error("File not suitable for predictions.")
-                        st.info(upload_response_data['message'])
+        if response.ok:
+            st.success("File successfully uploaded and is eligible for predictions")
+            if st.button("Predict from CSV"):
+                predict_response = requests.post(BASE_URL + '/predict_from_csv',files=files)
+                if predict_response.ok:
+                    st.success("Prediction successful")
+                    st.table(pd.DataFrame(predict_response.json()))
                 else:
-                    st.error("Failed to upload file. Please try again.")
-
-        finally:
-            if temp_file:
-                temp_file.close()
-                os.unlink(temp_file.name)
-
-            elif predict_button:
-                st.error("Please upload a CSV file before predicting.")
+                    st.error("Failed to make predictions.")
+        else:
+            st.error("File structure not compatible with the model. Please upload a valid file.")
+            response_json = json.loads(response.text)
+            detail_message = response_json.get("detail")
+            st.info(detail_message)
 
     if get_prediction:
         form_data = {
