@@ -1,3 +1,4 @@
+from io import BytesIO
 from fastapi import FastAPI
 from typing import List
 import os
@@ -6,6 +7,7 @@ import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
 
 from api_layer.fast_api.service_slices import fetch_past_predictions, insert_inference_data
+from logic_layer.acceptance_prediction.csv_service import validate_csv
 from logic_layer.pydantic_models import Prediction, PredictionRequest
 from logic_layer.acceptance_prediction.inference import make_predictions
 
@@ -41,16 +43,13 @@ async def get_past_predictions():
 async def create_upload_file(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be CSV")
+    
+    file_content = await file.read()
 
-    file_size = os.fstat(file.file.fileno()).st_size
-    if file_size > MAX_FILE_SIZE_BYTES:
+    if len(file_content) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds maximum limit")
-
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
-
-    return {"filename": file.filename, "file_path": file_path}
+    
+    file_in_memory = BytesIO(file_content)
+    is_valid, message = validate_csv(file_in_memory)
+    file_in_memory.seek(0)
+    return {"filename": file.filename, "is_valid": is_valid, "message": message}
