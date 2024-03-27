@@ -1,6 +1,6 @@
+import os
 import numpy as np
 import pandas as pd
-import os
 from joblib import load
 from .constants import CONTINUOUS_FEATURES, CATEGORICAL_FEATURES
 
