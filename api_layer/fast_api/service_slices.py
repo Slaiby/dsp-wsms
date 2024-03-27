@@ -25,7 +25,7 @@ async def fetch_past_predictions(params: PredictionQueryParams):
         query_params.append(end_date_obj)
 
     if params.prediction_source and params.prediction_source.lower() != 'all':
-        conditions.append(f"source = ${len(query_params) + 1}")
+        conditions.append(f"prediction_source = ${len(query_params) + 1}")
         query_params.append(params.prediction_source)
 
     if conditions:
