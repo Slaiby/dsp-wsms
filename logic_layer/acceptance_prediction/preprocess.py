@@ -43,5 +43,4 @@ def preprocess_data(X_train: pd.DataFrame, X_test: pd.DataFrame) -> Tuple[np.nda
     X_train_preprocessed = np.concatenate([X_train_continuous_scaled, X_train_categorical_encoded], axis=1)
     X_test_preprocessed = np.concatenate([X_test_continuous_scaled, X_test_categorical_encoded], axis=1)
 
-    return X_train_preprocessed, X_test_preprocessed, scaler, encoder
-
+    return X_train_preprocessed, X_test_preprocessed, scaler, encoder, categorical_imputer, continuous_imputer
