@@ -45,6 +45,25 @@ async def create_upload_file(file: UploadFile = File(...)):
 async def predict_from_csv(file: UploadFile = File(...)):
     file_in_memory = await handle_csv_file(file)
     df = pd.read_csv(file_in_memory)
+    predictor = await get_predictor()
+    response_list = []
 
-    predictions = [predictor.make_prediction(row.to_dict()).tolist()[0] for _, row in df.iterrows()]
-    return {"predictions": predictions}
+    for item in predictor.make_predictions_from_csv(df):
+            features = item['features']
+            prediction = item['prediction']
+            response_item = {
+                "Credit_History": features['Credit_History'],
+                "Dependents": features['Dependents'],
+                "Education": features['Education'],
+                "Married": features['Married'],
+                "Property_Area": features['Property_Area'],
+                "ApplicantIncome": features['ApplicantIncome'],
+                "CoapplicantIncome": features['CoapplicantIncome'],
+                "LoanAmount": features['LoanAmount'],
+                "Loan_Amount_Term": features['Loan_Amount_Term'],
+            }
+            await insert_inference_data(response_item, prediction)
+            response_item['prediction'] = prediction == 1 and 'Eligible' or 'Not Eligible'
+            response_list.append(response_item)
+
+    return response_list
