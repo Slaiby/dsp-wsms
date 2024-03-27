@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 class Prediction(BaseModel):
@@ -24,3 +24,7 @@ class PredictionQueryParams(BaseModel):
     prediction_source: Optional[str] = Field(None, description="Source of prediction")
     page: int = Field(1, description="Page number for pagination", ge=1)
     page_size: int = Field(10, description="Number of items per page", ge=1)
+
+class PredictionResponse(BaseModel):
+    data: List[Prediction]
+    total_count: int
