@@ -63,6 +63,11 @@ def prediction_page():
                     upload_response_data = upload_response.json()
                     if upload_response_data['is_valid']:
                         st.success("File uploaded successfully. and is suitable for prediction.")
+                        predict_csv = requests.post(BASE_URL + '/predict_from_csv', 
+                                                files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
+                        if predict_csv.status_code == 200:
+                            prediction = predict_csv.json()
+                            st.success(f'Eligibility prediction: {prediction}')
                     else:
                         st.error("File not suitable for predictions.")
                         st.info(upload_response_data['message'])
