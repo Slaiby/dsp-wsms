@@ -84,28 +84,37 @@ def prediction_page():
             st.error('Failed to get prediction from the API.')
 
 def past_predictions_page():
+    st.title("Past Predictions")
     start_date = st.date_input("Start Date", value=None)
     end_date = st.date_input("End Date", value=None)
     prediction_source = st.selectbox("Prediction Source", options=["webapp", "csv-predictions", "scheduled predictions", "all"])
 
+    page = st.number_input("Page Number", min_value=1, value=1, step=1)
+    page_size = st.selectbox("Predictions per Page", options=[10, 20, 50, 100], index=0)
+
     query_params = {
         "start_date": start_date.strftime('%Y-%m-%d') if start_date else None,
         "end_date": end_date.strftime('%Y-%m-%d') if end_date else None,
-        "prediction_source": prediction_source
+        "prediction_source": prediction_source,
+        "page": page,
+        "page_size": page_size
     }
 
-    with st.form(key='past_predictions_form'):
-        get_previous_predictions = st.form_submit_button(label='Get Past Predictions')
+    get_previous_predictions = st.button(label='Get Past Predictions')
 
     if get_previous_predictions:
         try:
             response = requests.get(BASE_URL + '/get-past-predictions', params=query_params)
             response.raise_for_status()
+            response_data = response.json()
 
-            if response.json():
-                predictions_data = pd.DataFrame(response.json())
-                summary_df = predictions_data[['id', 'prediction', 'timestamp']]
-                st.table(summary_df)
+            predictions_data = pd.DataFrame(response_data["data"])
+            total_count = response_data["total_count"]
+            total_pages = (total_count + page_size - 1) // page_size
+
+            if not predictions_data.empty:
+                st.table(predictions_data[['id', 'prediction', 'timestamp']])
+                st.write("DataFrame Content:", predictions_data.head())
 
                 st.write("Detailed JSON Data:")
                 for index, row in predictions_data.iterrows():
@@ -114,12 +123,26 @@ def past_predictions_page():
             else:
                 st.warning("No prediction data received from the API.")
 
+            col1, col2 = st.columns(2)
+            with col1:
+                if page > 1:
+                    prev_page = st.button("Previous", key='prev')
+                    if prev_page:
+                        page -= 1
+                        st.experimental_rerun()
+
+            with col2:
+                if page < total_pages:
+                    next_page = st.button("Next", key='next')
+                    if next_page:
+                        page += 1
+                        st.experimental_rerun()
+
         except requests.exceptions.RequestException as e:
             st.error(f"Error retrieving past predictions: {e}")
-        except KeyError as e:
-            st.error(f"Error processing API response: {e}")
         except Exception as e:
             st.error(f"An unexpected error occurred: {e}")
+
 
 def main():
     st.title("Loan Eligibility Prediction 🏠")
