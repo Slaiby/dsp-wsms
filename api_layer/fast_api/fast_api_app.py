@@ -6,7 +6,7 @@ import pandas as pd
 from api_layer.fast_api.service_slices import fetch_past_predictions, handle_csv_file, insert_inference_data
 from logic_layer.acceptance_prediction.csv_service import validate_csv
 from logic_layer.acceptance_prediction.inference import PredictionModel
-from logic_layer.pydantic_models import Prediction, PredictionQueryParams, PredictionRequest
+from logic_layer.pydantic_models import Prediction, PredictionQueryParams, PredictionRequest, PredictionResponse
 
 app = FastAPI()
 
@@ -22,7 +22,7 @@ async def predict(request_data: Union[PredictionRequest, Dict], predictor: Predi
     await insert_inference_data(input_dict, prediction.tolist()[0], 'webapp')
     return {"prediction": prediction.tolist()}
 
-@app.get("/get-past-predictions", response_model=List[Prediction])
+@app.get("/get-past-predictions", response_model=PredictionResponse)
 async def get_past_predictions_endpoint(params: PredictionQueryParams = Depends()):
     predictions = await fetch_past_predictions(params)
     prediction_list = [
@@ -33,7 +33,7 @@ async def get_past_predictions_endpoint(params: PredictionQueryParams = Depends(
             timestamp=str(prediction['timestamp'])
         ) for prediction in predictions
     ]
-    return prediction_list
+    return PredictionResponse(data=prediction_list, total_count=len(prediction_list))
 
 @app.post("/file/upload")
 async def create_upload_file(file: UploadFile = File(...)):
