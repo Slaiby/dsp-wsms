@@ -66,8 +66,7 @@ def prediction_page():
                         predict_csv = requests.post(BASE_URL + '/predict_from_csv', 
                                                 files={'file': (temp_file_name, open(temp_file.name, 'rb'))})
                         if predict_csv.status_code == 200:
-                            prediction = predict_csv.json()
-                            st.success(f'Eligibility prediction: {prediction}')
+                            st.table(pd.DataFrame(predict_csv.json()))
                     else:
                         st.error("File not suitable for predictions.")
                         st.info(upload_response_data['message'])
