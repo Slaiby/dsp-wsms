@@ -114,8 +114,6 @@ def past_predictions_page():
 
             if not predictions_data.empty:
                 st.table(predictions_data[['id', 'prediction', 'timestamp']])
-                st.write("DataFrame Content:", predictions_data.head())
-
                 st.write("Detailed JSON Data:")
                 for index, row in predictions_data.iterrows():
                     with st.expander(f"Details for Prediction ID {row['id']}"):
