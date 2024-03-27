@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field
 
 class Prediction(BaseModel):
     id: int
@@ -16,3 +17,10 @@ class PredictionRequest(BaseModel):
     Education: str
     Married: str
     Property_Area: str
+
+class PredictionQueryParams(BaseModel):
+    start_date: Optional[str] = Field(None, description="Start Date in YYYY-MM-DD format")
+    end_date: Optional[str] = Field(None, description="End Date in YYYY-MM-DD format")
+    prediction_source: Optional[str] = Field(None, description="Source of prediction")
+    page: int = Field(1, description="Page number for pagination", ge=1)
+    page_size: int = Field(10, description="Number of items per page", ge=1)
