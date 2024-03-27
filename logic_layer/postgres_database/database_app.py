@@ -20,6 +20,7 @@ async def initialize_db():
                         id SERIAL PRIMARY KEY,
                         request_data JSONB NOT NULL,
                         prediction VARCHAR(255) NOT NULL,
+                        prediction_source VARCHAR(255) NOT NULL,
                         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
                     );
                 ''')
