@@ -20,7 +20,8 @@ async def predict(request_data: Union[PredictionRequest, Dict], predictor: Predi
     input_dict = request_data.model_dump() if isinstance(request_data, PredictionRequest) else request_data
     prediction = predictor.make_prediction(input_dict)
     await insert_inference_data(input_dict, prediction.tolist()[0], 'webapp')
-    return {"prediction": prediction.tolist()}
+    eligibility = prediction.tolist()[0] == 1 and 'Eligible' or 'Not Eligible'
+    return {"response_item": request_data, "prediction": eligibility}
 
 @app.get("/get-past-predictions", response_model=PredictionResponse)
 async def get_past_predictions_endpoint(params: PredictionQueryParams = Depends()):

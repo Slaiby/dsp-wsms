@@ -78,8 +78,12 @@ def prediction_page():
 
         response = requests.post(BASE_URL + '/predict', json=form_data)
         if response.status_code == 200:
-            prediction = response.json()
-            st.success(f'Eligibility prediction: {prediction}')
+            predict_response = response.json()
+            features = predict_response["response_item"]
+            features['Prediction'] = predict_response["prediction"]
+            st.success('Prediction successful information below:')
+            result_df = pd.DataFrame([features])
+            st.table(result_df)
         else:
             st.error('Failed to get prediction from the API.')
 
