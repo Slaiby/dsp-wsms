@@ -1,4 +1,4 @@
-## Project Title 🚀
+## DSP WSMS 🚀
 
 Brief overview of the project, highlighting its purpose and the problems it solves.
 
