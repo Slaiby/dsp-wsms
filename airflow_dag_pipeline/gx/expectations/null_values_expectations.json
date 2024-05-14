@@ -1,0 +1,12 @@
+{
+  "expectation_suite_name": "null_values_expectations",
+  "meta": {
+    "great_expectations_version": ">=0.13.0"
+  },
+  "expectations": [
+    {
+      "expectation_type": "expect_table_columns_to_not_contain_null",
+      "kwargs": {}
+    }
+  ]
+}
