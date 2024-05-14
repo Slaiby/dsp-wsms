@@ -135,6 +135,9 @@ dmypy.json.5
 # FastAPI docs generated files
 docs/
 
+# airflow stuff
+airflow-t/
+
 # Exclude specific files or directories related to your project
 # e.g., configuration files with sensitive information
 # config.yaml

@@ -19,7 +19,7 @@ LP004016,Female,No,0,Graduate,No,4598.0,1734.0,,360.0,1.0,Semiurban,Y
 LP004017,Female,Yes,2,Graduate,No,5544.0,9313.0,285.0,120.0,1.0,Urban,N
 LP004018,Male,No,0,Not Graduate,No,19060.0,9007.0,471.0,240.0,1.0,Urban,N
 LP004019,Male,Yes,0,Graduate,No,16727.0,5384.0,440.0,360.0,1.0,Semiurban,Y
-LP004020,Male,No,0,Not Graduate,No,19157.0,6328.0,54.0,360.0,1.0,Urban,N
+LP004020,99349,No,0,Not Graduate,No,19157.0,6328.0,54.0,360.0,1.0,Urban,N
 LP004021,Male,Yes,0,Not Graduate,No,15097.0,9911.0,186.0,240.0,1.0,Rural,Y
 LP004022,Female,Yes,2,Not Graduate,No,13269.0,6926.0,446.0,360.0,1.0,Semiurban,Y
 LP004023,Female,Yes,1,Not Graduate,No,3841.0,8926.0,97.0,360.0,0.0,Urban,Y
