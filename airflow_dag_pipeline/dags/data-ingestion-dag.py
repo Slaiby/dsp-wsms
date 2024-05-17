@@ -1,69 +1,72 @@
+import asyncio
 import os
 import pandas as pd
 import random
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-
-import datetime
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
-from sqlalchemy.exc import SQLAlchemyError
 import great_expectations as ge
 import requests
 import json
+from datetime import datetime
 from great_expectations.dataset.pandas_dataset import PandasDataset
 from great_expectations.data_context.data_context import DataContext
 from airflow.operators.python import BranchPythonOperator
-from sqlalchemy import String
-import hashlib
-from great_expectations.data_context import DataContext
-from great_expectations.core.batch import BatchRequest
-import time
+import asyncpg
 import os
-from sqlalchemy import DateTime, JSON
+import json
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from gx.docs_generator import generate_html_from_expectations
+
+DB_NAME='postgres'
+DB_USER='root_user'
+DB_PASSWORD='root_password_secret'
+DB_HOST='localhost'
+
+async def create_db_connection():
+    return await asyncpg.connect(
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        host=DB_HOST
+    )
+
+async def close_db_connection(conn):
+    await conn.close()
 
 dag_folder = os.path.dirname(os.path.abspath(__file__))
-# Define the global path variable
 RAW_DATA_PATH = os.path.join(dag_folder, 'raw-data')
-# Initialize the storage paths for good and bad data
 good_data_path = os.path.join(dag_folder, 'good-data')
 bad_data_path = os.path.join(dag_folder, 'bad-data')
 
 def read_data(**kwargs):
-
-    files = os.listdir(RAW_DATA_PATH)
+    files = [file for file in os.listdir(RAW_DATA_PATH) if file.endswith('.csv')]
+    if not files:
+        raise FileNotFoundError("No CSV files found in directory.")
     selected_file = random.choice(files)
     file_path = os.path.join(RAW_DATA_PATH, selected_file)
-    print("file_path in   read_datais ", file_path)
+    print("file_path in read_data is ", file_path)
     kwargs["ti"].xcom_push(key="file_path", value=file_path)
 
-
 def validate_data(**kwargs):
-    # Extract the file path from Airflow XCom (assuming Airflow context)
     file_path = kwargs["ti"].xcom_pull(key="file_path", task_ids="read_data")
     print("file_path in validate_data is ", file_path)
     data_asset_name = os.path.basename(file_path).split(".")[0]
     print("data_asset_name is ", data_asset_name)
 
-    # Load data into a DataFrame
     df = pd.read_csv(file_path)
 
-    # Initialize Great Expectations context
     ge_directory = os.path.abspath(os.path.join(dag_folder, '..', 'gx'))
     context = DataContext(context_root_dir=ge_directory)
-
-    # Load the existing expectation suite
     expectation_suite_name = "my_ex"
     expectation_suite = context.get_expectation_suite(expectation_suite_name)
 
-    # Create a GE DataFrame, attaching the expectation suite
     ge_df = PandasDataset(df)
     ge_df._initialize_expectations(expectation_suite)
-
-    # Validate the data against the expectations
     validation_results = ge_df.validate()
+    print('validation_results:', validation_results)
 
-    # Push validation results and Run ID to XCom
-    run_id = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_id = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     kwargs["ti"].xcom_push(key="validation_results", value=validation_results)
     kwargs["ti"].xcom_push(key="run_id", value=run_id)
 
@@ -73,38 +76,17 @@ def validate_data(**kwargs):
     else:
         print(file_path, "is bad data")
         kwargs["ti"].xcom_push(key="data_quality", value="bad_data")
-
-        # Define the batch request for loading data correctly
-        batch_request = BatchRequest(
-            datasource_name="my_csv_datasource",
-            data_connector_name="default_inferred_data_connector_name",
-            data_asset_name=data_asset_name,
-        )
-
-        # Create a checkpoint for validation
-        checkpoint_name = f"my_checkpoint_{int(time.time())}"
-        context.add_checkpoint(
-            name=checkpoint_name,
-            config_version=1,
-            class_name="SimpleCheckpoint",
-            validations=[
-                {
-                    "batch_request": batch_request.to_json_dict(),
-                    "expectation_suite_name": expectation_suite_name,
-                }
-            ],
-        )
-
-        # Run the checkpoint
-        context.run_checkpoint(checkpoint_name=checkpoint_name)
-
-        # Build and print the location of Data Docs
-        context.build_data_docs()
-        data_docs_site = context.get_docs_sites_urls()[0]["site_url"]
-        print(f"Data Docs generated at: {data_docs_site}")
-
-    pass
-
+        bad_file_path = os.path.join(bad_data_path, os.path.basename(file_path))
+        df.to_csv(bad_file_path, index=False)
+        print(f"Bad data saved at {bad_file_path}")
+                # Ensure the reports directory exists
+        reports_dir = os.path.join(dag_folder, 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+        # Generate HTML report and save it
+        html_file_path = os.path.join(reports_dir, f"{data_asset_name}_validation_report.html")
+        generate_html_from_expectations({"results": validation_results['results'], "meta": validation_results['meta']}, output_file_path=html_file_path)
+        print(f"Validation report saved at {html_file_path}")
+        kwargs["ti"].xcom_push(key="html_file_path", value=html_file_path)
 
 def decide_which_path(**kwargs):
     ti = kwargs["ti"]
@@ -114,28 +96,28 @@ def decide_which_path(**kwargs):
     else:
         return ["send_alerts", "save_data_errors", "save_file"]
 
-
 def send_alerts(**kwargs):
-    validation_results = kwargs["ti"].xcom_pull(
-        key="validation_results", task_ids="validate_data"
-    )
+    validation_results = kwargs["ti"].xcom_pull(key="validation_results", task_ids="validate_data")
     run_id = kwargs["ti"].xcom_pull(key="run_id", task_ids="validate_data")
     file_path = kwargs["ti"].xcom_pull(key="file_path", task_ids="read_data")
+    html_file_path = kwargs["ti"].xcom_pull(key="html_file_path", task_ids="validate_data")
     df = pd.read_csv(file_path)
 
     failed_expectations = [
         result for result in validation_results["results"] if not result["success"]
     ]
-    total_failed_count = len(failed_expectations)
-    error_summary = os.linesep.join(
-        [
-            f"- Expectation {index + 1}: {expectation['expectation_config']['expectation_type']} failed with {expectation['result']['unexpected_count']} unexpected values."
-            for index, expectation in enumerate(failed_expectations)
-        ]
-    )
-    teams_webhook_url = "https://epitafr.webhook.office.com/webhookb2/66c8b7ae-6477-4603-9a5b-49d5f2191a91@3534b3d7-316c-4bc9-9ede-605c860f49d2/IncomingWebhook/f76d2dd16d7e44189ed49093915d8360/4981d105-4c57-4ae4-ac72-2623b4a8b6b8"
-    headers = {"Content-Type": "application/json"}
 
+    total_failed_count = len(failed_expectations)
+
+    error_summary = os.linesep.join([
+        f"- Expectation {index + 1} on column '{expectation['expectation_config']['kwargs']['column']}': " +
+        f"{expectation['expectation_config']['expectation_type']} failed with " +
+        f"{expectation['result'].get('unexpected_count', 0)} unexpected values."
+        for index, expectation in enumerate(failed_expectations)
+    ])
+    
+    teams_webhook_url = "https://epitafr.webhook.office.com/webhookb2/d2b788f4-3428-444f-b268-f9e222862c48@3534b3d7-316c-4bc9-9ede-605c860f49d2/IncomingWebhook/01db172dbe4c495ba29bbaa4569635ef/7b1bab11-3d39-43d0-a38f-7157c22d4d5a"
+    headers = {"Content-Type": "application/json"}
     bad_rows_indices = set()
 
     # Process each result to find failed expectations and their indices
@@ -152,18 +134,30 @@ def send_alerts(**kwargs):
                         df[result["expectation_config"]["kwargs"]["column"]] == value
                     ].tolist()
                     bad_rows_indices.update(index_list)
+                    
     bad_rows_indices_len = len(bad_rows_indices)
     kwargs["ti"].xcom_push(key="bad_rows_indices_len", value=bad_rows_indices_len)
-    if bad_rows_indices_len > 5:
+    if bad_rows_indices_len > 3:
         criticality = "high"
-    elif bad_rows_indices_len > 3:
+    elif bad_rows_indices_len > 2:
         criticality = "medium"
     else:
         criticality = "low"
 
     kwargs["ti"].xcom_push(key="criticality", value=criticality)
+    report_url = f"http://127.0.0.1:5500/airflow_dag_pipeline/dags/reports/{os.path.basename(html_file_path)}"
     alert_message = {
-        "text": f"Data Problem Alert (Run ID: {run_id} look at this run id in the datadocs):\n\n filepath is : {file_path}\n\nCriticality: {criticality}\n\n Number of failed rows :{len(bad_rows_indices)}\n\nSummary: {total_failed_count} expectations failed validation.\n\nError Details:\n\n{error_summary}\n\nCheck the detailed report here: [Data Docs](http://34.16.139.133:8000/index.html)"
+        "text": (
+            f"Data Problem Alert\n"
+            f"Run ID: {run_id}\n"
+            f"File Path: {file_path}\n\n"
+            f"Criticality: {criticality}\n"
+            f"Number of Failed Rows: {len(bad_rows_indices)}\n\n"
+            f"Summary: {total_failed_count} expectations failed validation.\n\n"
+            f"Error Details:\n"
+            f"{error_summary}\n\n"
+            f"Validation Report: [HTML Report]({report_url})"
+        )
     }
     print("alert_message is", alert_message)
 
@@ -177,31 +171,14 @@ def send_alerts(**kwargs):
     except requests.exceptions.RequestException as e:
         print(f"Error sending alert to Teams: {e}")
 
-
-# def save_file(**kwargs):
-#     file_path = kwargs['ti'].xcom_pull(key='file_path', task_ids='read_data')
-#     data_quality = kwargs['ti'].xcom_pull(key='data_quality', task_ids='validate_data')
-#     df = pd.read_csv(file_path)
-
-#     if data_quality == 'good_data':
-#         df.to_csv(os.path.join(good_data_path, os.path.basename(file_path)), index=False)
-#     else:
-#         df.to_csv(os.path.join(bad_data_path, os.path.basename(file_path)), index=False)
-
-#     os.remove(file_path)
-
-
 def save_file(**kwargs):
-    # Retrieve data from XCom
     file_path = kwargs["ti"].xcom_pull(key="file_path", task_ids="read_data")
     validation_results = kwargs["ti"].xcom_pull(
         key="validation_results", task_ids="validate_data"
     )
     df = pd.read_csv(file_path)
-    # Initialize an empty set to collect indices of rows with issues
     bad_rows_indices = set()
 
-    # Process each result to find failed expectations and their indices
     for result in validation_results["results"]:
         if not result["success"]:
             if (
@@ -240,79 +217,97 @@ def save_file(**kwargs):
         df_bad.to_csv(bad_file_path, index=False)
         print(f"Saved bad data to {bad_file_path}")
 
-    # Remove the original file
     os.remove(file_path)
 
+async def save_data_errors_async(ti):
+    conn = await create_db_connection()
+    try:
+        async with conn.transaction():
+            exists = await conn.fetchval(f"SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{DB_NAME}')")
+            if not exists:
+                await conn.execute(f'CREATE DATABASE {DB_NAME}')
+                print(f"Database '{DB_NAME}' created successfully.")
+            else:
+                print(f"Database '{DB_NAME}' already exists.")
+                
+        create_table_result = await conn.execute("""
+            CREATE TABLE IF NOT EXISTS data_quality_statistics (
+                id SERIAL PRIMARY KEY,
+                total_rows INTEGER,
+                failed_rows INTEGER,
+                timestamp TIMESTAMP,
+                file_path VARCHAR(500),
+                criticality VARCHAR(500),
+                error_details JSON
+            );
+        """)
+        print("Create table result:", create_table_result)
+
+        file_path = ti.xcom_pull(key="file_path", task_ids="read_data")
+        validation_results = ti.xcom_pull(
+                key="validation_results", task_ids="validate_data"
+            )
+        file_path = ti.xcom_pull(key="file_path", task_ids="read_data")
+        failed_expectations = [
+                result for result in validation_results["results"] if not result["success"]
+            ]
+        error_summary_json = {
+            "error_details": [
+                {
+                    "expectation_number": index + 1,
+                    "column": expectation['expectation_config']['kwargs']['column'],
+                    "expectation_type": expectation['expectation_config']['expectation_type'],
+                    "unexpected_count": expectation['result'].get('unexpected_count', 0),
+                    "unexpected_values": expectation['result'].get('partial_unexpected_list', [])
+                }
+                for index, expectation in enumerate(failed_expectations)
+            ]
+        }
+        print("Error error_summary:", error_summary_json)
+        validation_results = ti.xcom_pull(key="validation_results", task_ids="validate_data")
+        total_rows = len(validation_results["results"])
+        
+        criticality = ti.xcom_pull(key="criticality", task_ids="send_alerts")
+        bad_rows_indices_len = ti.xcom_pull(key="bad_rows_indices_len", task_ids="send_alerts")
+        insert_result = await conn.execute(
+            """
+            INSERT INTO data_quality_statistics (
+                total_rows, failed_rows, timestamp, file_path, criticality, error_details
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+            """,
+            total_rows,
+            bad_rows_indices_len,
+            datetime.now(),
+            file_path,
+            criticality,
+            json.dumps(error_summary_json)
+        )
+        print("Insert result:", insert_result)
+        print("Data quality statistics saved to the database.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        await close_db_connection(conn)
 
 def save_data_errors(**kwargs):
-    file_path = kwargs["ti"].xcom_pull(key="file_path", task_ids="read_data")
-    validation_results = kwargs["ti"].xcom_pull(
-        key="validation_results", task_ids="validate_data"
-    )
-    total_rows = len(validation_results["results"])
-    criticality = kwargs["ti"].xcom_pull(key="criticality",
-                                         task_ids="send_alerts")
-    bad_rows_indices_len = kwargs["ti"].xcom_pull(
-        key="bad_rows_indices_len", task_ids="send_alerts"
-    )
-    error_details = {
-        result["expectation_config"]["expectation_type"]: result["result"][
-            "unexpected_count"
-        ]
-        for result in validation_results["results"]
-        if not result["success"]
-    }
-    db_connection_string = "postgresql://car:password@34.16.139.133/carprice"
-    engine = create_engine(db_connection_string)
-
-    metadata = MetaData()
-
-    data_quality_table = Table(
-        "data_quality_statistics",
-        metadata,
-        Column("id", Integer, primary_key=True),
-        Column("total_rows", Integer),
-        Column("failed_rows", Integer),
-        Column("timestamp", DateTime),
-        Column("file_path", String(500)),
-        Column("criticality", String(500)),
-        Column("error_details", JSON),
-    )
-
-    metadata.create_all(engine)
-
-    try:
-        with engine.connect() as connection:
-            insert_query = data_quality_table.insert().values(
-                total_rows=total_rows,
-                failed_rows=bad_rows_indices_len,
-                timestamp=datetime.datetime.now(),
-                file_path=file_path,
-                criticality=criticality,
-                error_details=json.dumps(error_details),
-            )
-            connection.execute(insert_query)
-            print("Data quality statistics saved to the database.")
-    except SQLAlchemyError as e:
-        print(f"Error saving data quality statistics to the database: {e}")
-
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(save_data_errors_async(kwargs['ti']))
 
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime.datetime(2023, 1, 1),
+    "start_date": datetime(2023, 1, 1),
     "email_on_failure": False,
-    "email_on_retry": False,
+    "email_on_retry": False, 
     "retries": 0,
 }
 
 dag = DAG(
     "data_ingestion_pipelines_2",
     default_args=default_args,
-    schedule="@daily",
+    schedule_interval="*/2 * * * *",
     catchup=False,
 )
-
 
 read_data_task = PythonOperator(
     task_id="read_data",
