@@ -1,14 +1,55 @@
 {
   "data_asset_type": "Dataset",
-  "expectation_suite_name": "my_ex",
+  "expectation_suite_name": "default",
   "expectations": [
     {
       "expectation_type": "expect_column_values_to_be_in_set",
       "kwargs": {
-        "column": "Gender",
-        "value_set": ["Male", "Female"]
-      },
-      "meta": {}
+        "column": "Married",
+        "value_set": ["Yes", "No"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Education",
+        "value_set": ["Graduate", "Not Graduate"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Self_Employed",
+        "value_set": ["Yes", "No"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Property_Area",
+        "value_set": ["Urban", "Rural", "Semiurban"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Loan_Status",
+        "value_set": ["Y", "N"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Dependents",
+        "value_set": ["0", "1", "2", "3+"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "Credit_History",
+        "value_set": [1.0, 0.0]
+      }
     }
   ],
   "ge_cloud_id": null,
