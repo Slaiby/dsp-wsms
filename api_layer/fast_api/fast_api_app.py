@@ -42,29 +42,35 @@ async def create_upload_file(file: UploadFile = File(...)):
     is_valid, message = validate_csv(file_in_memory)
     return {"filename": file.filename, "is_valid": is_valid, "message": message}
 
+from fastapi import FastAPI, File, UploadFile, Form
+
 @app.post("/predict_from_csv")
-async def predict_from_csv(file: UploadFile = File(...)):
+async def predict_from_csv(
+    file: UploadFile = File(...),
+    prediction_source: str = Form(default='csv-predictions')  
+):
     file_in_memory = await handle_csv_file(file)
     df = pd.read_csv(file_in_memory)
     predictor = await get_predictor()
     response_list = []
 
     for item in predictor.make_predictions_from_csv(df):
-            features = item['features']
-            prediction = item['prediction']
-            response_item = {
-                "Credit_History": features['Credit_History'],
-                "Dependents": features['Dependents'],
-                "Education": features['Education'],
-                "Married": features['Married'],
-                "Property_Area": features['Property_Area'],
-                "ApplicantIncome": features['ApplicantIncome'],
-                "CoapplicantIncome": features['CoapplicantIncome'],
-                "LoanAmount": features['LoanAmount'],
-                "Loan_Amount_Term": features['Loan_Amount_Term'],
-            }
-            await insert_inference_data(response_item, prediction, 'csv-predictions')
-            response_item['prediction'] = prediction == 1 and 'Eligible' or 'Not Eligible'
-            response_list.append(response_item)
+        features = item['features']
+        prediction = item['prediction']
+        response_item = {
+            "Credit_History": features['Credit_History'],
+            "Dependents": features['Dependents'],
+            "Education": features['Education'],
+            "Married": features['Married'],
+            "Property_Area": features['Property_Area'],
+            "ApplicantIncome": features['ApplicantIncome'],
+            "CoapplicantIncome": features['CoapplicantIncome'],
+            "LoanAmount": features['LoanAmount'],
+            "Loan_Amount_Term": features['Loan_Amount_Term'],
+        }
+        await insert_inference_data(response_item, prediction, prediction_source) 
+        response_item['prediction'] = 'Eligible' if prediction == 1 else 'Not Eligible'
+        response_list.append(response_item)
 
     return response_list
+
