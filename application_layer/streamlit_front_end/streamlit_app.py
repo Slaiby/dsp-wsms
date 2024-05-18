@@ -91,7 +91,7 @@ def past_predictions_page():
     st.title("Past Predictions")
     start_date = st.date_input("Start Date", value=None)
     end_date = st.date_input("End Date", value=None)
-    prediction_source = st.selectbox("Prediction Source", options=["webapp", "csv-predictions", "scheduled predictions", "all"])
+    prediction_source = st.selectbox("Prediction Source", options=["webapp", "csv-predictions", "scheduled-predictions", "all"])
 
     page = st.number_input("Page Number", min_value=1, value=1, step=1)
     page_size = st.selectbox("Predictions per Page", options=[10, 20, 50, 100], index=0)

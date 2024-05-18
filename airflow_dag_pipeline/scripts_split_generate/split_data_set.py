@@ -4,7 +4,7 @@ import numpy as np
 
 def main():
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    input_dir = os.path.join(parent_dir, "main-data-set")
+    input_dir = os.path.join(parent_dir, "main_data_set")
     if not os.path.exists(input_dir):
         print("Input directory not found:", input_dir)
         return

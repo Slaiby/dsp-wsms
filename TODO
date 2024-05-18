@@ -1,0 +1,15 @@
+- [x] Creation of data processing dag
+- [x] Creation of good data prediction csv dag
+- [x] Streamlit app
+- [x] Fast api backend
+- [x] model prediction
+- [x] Teams notification alert
+- [x] grafana for good and bad responses
+- [x] Readme and pushed to main
+- [x] presentation
+- [x] get previous prediction filtered by date and source
+- [x] Script that generates data issues
+- [x] splitting into good and bad data
+- [x] Html Data Docs
+- [x] Orchestrator python launcher
+- [x] Postgres database storing erroneous data and predictions

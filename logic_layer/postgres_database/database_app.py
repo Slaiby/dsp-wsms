@@ -24,5 +24,4 @@ async def initialize_db():
                         timestamp TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
                     );
                 ''')
-        print("Table 'api_inferences' created/verified successfully.")
     await conn.close()
