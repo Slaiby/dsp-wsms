@@ -1,4 +1,3 @@
-you can use this:
 ## Loan Eligibility Prediction 🚀
  
 This repository contains the source code and documentation for a comprehensive Loan Eligibility Prediction Web Application and Monitoring System. The system includes components for making predictions, visualizing past predictions, model serving via an API, data ingestion with quality validation, scheduled predictions, and monitoring dashboards.
